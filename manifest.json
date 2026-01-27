@@ -1,0 +1,27 @@
+{
+  "manifest_version": 2,
+  "name": "Tab Jumper",
+  "version": "0.1.0",
+  "description": "Quickly search and jump to tabs (Chrome-like Ctrl+Shift+A).",
+  "permissions": ["tabs", "sessions", "storage"],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "browser_action": {
+    "default_title": "Tab Jumper",
+    "default_popup": "popup.html"
+  },
+  "commands": {
+    "_execute_browser_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Space"
+      },
+      "description": "Open Tab Jumper"
+    }
+  },
+  "applications": {
+    "gecko": {
+      "id": "tab-jumper@local"
+    }
+  }
+}
