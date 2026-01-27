@@ -1,5 +1,7 @@
 # Tab Jumper
 
+![Tab Jumper](tab-jumper.png)
+
 A Firefox extension that replicates the quick tab-switching experience from Brave/Chrome, with Vim motions because I love Vim.
 
 The shortcut is `Ctrl+Shift+Space` — I found that to be comfortable enough, you can change it later for whatever you like.
