@@ -113,6 +113,14 @@ function itemUrl(item) {
   return item.session?.tab?.url || "";
 }
 
+function itemHost(item) {
+  try {
+    return new URL(itemUrl(item)).hostname;
+  } catch {
+    return itemUrl(item);
+  }
+}
+
 function itemFavicon(item) {
   if (item.kind === "tab") return item.tab.favIconUrl || "";
   return item.session?.tab?.favIconUrl || "";
@@ -132,12 +140,10 @@ function combinedScoreTabLike(tab, query) {
 
   const title = tab.title || "";
   const url = tab.url || "";
-  const urlNoProto = url.replace(/^https?:\/\//i, "");
 
   const { host, base, full } = getHostParts(url);
 
-  // For each token, require it to match somewhere (host/url/title).
-  // Then weight host > url > title.
+  // For each token, require it to match somewhere (host/title).
   let total = 0;
 
   for (const tok of toks) {
@@ -146,18 +152,15 @@ function combinedScoreTabLike(tab, query) {
       fuzzyScore(host, tok),
       fuzzyScore(base, tok),
     );
-    const sUrl = fuzzyScore(urlNoProto, tok);
     const sTitle = fuzzyScore(title, tok);
 
-    const MIN = tok.length * 8; // require reasonable quality per character
+    const MIN = tok.length * 8;
     const hasHost = sHost >= MIN;
-    const hasUrl = sUrl >= MIN;
     const hasTitle = sTitle >= MIN;
 
-    if (!hasHost && !hasUrl && !hasTitle) return -Infinity;
+    if (!hasHost && !hasTitle) return -Infinity;
 
     const W_HOST = 4.0;
-    const W_URL = 2.0;
     const W_TITLE = 3.0;
 
     const domainBonus = hasHost ? 60 : 0;
@@ -165,13 +168,11 @@ function combinedScoreTabLike(tab, query) {
     total +=
       domainBonus +
       W_HOST * (hasHost ? sHost : 0) +
-      W_URL * (hasUrl ? sUrl : 0) +
       W_TITLE * (hasTitle ? sTitle : 0);
   }
 
-  // Extra boosts for whole-query substring matches (nice for "chatgpt", "teams", etc.)
+  // Extra boosts for whole-query substring matches
   total += includesScore(full, query) * 2;
-  total += includesScore(urlNoProto, query);
   total += includesScore(title, query);
 
   return total;
@@ -342,7 +343,7 @@ function render() {
     const title = document.createElement("div");
     title.className = "title";
     const titleText = itemTitle(item);
-    const urlText = itemUrl(item);
+    const hostText = itemHost(item);
     const query = $q.value;
 
     if (query) {
@@ -354,9 +355,9 @@ function render() {
     const sub = document.createElement("div");
     sub.className = "sub";
     if (query) {
-      sub.appendChild(highlightText(urlText, getMatchPositions(urlText, query)));
+      sub.appendChild(highlightText(hostText, getMatchPositions(hostText, query)));
     } else {
-      sub.textContent = urlText;
+      sub.textContent = hostText;
     }
 
     textWrap.appendChild(title);

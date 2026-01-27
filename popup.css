@@ -45,7 +45,7 @@ body {
 }
 
 .wrap {
-  padding: 10px;
+  /* padding: 10px; */
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -53,17 +53,11 @@ body {
 
 #q {
   width: 100%;
-  padding: 10px 10px;
-  border: 1px solid var(--border);
-  background: var(--input-bg);
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
   color: var(--fg);
-  border-radius: 10px;
   outline: none;
-}
-
-#q:focus {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 #meta {
@@ -76,8 +70,8 @@ body {
   list-style: none;
   padding: 0;
   margin: 0;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  /* border: 1px solid var(--border); */
+  /* border-radius: 10px; */
   overflow-y: auto;
   overflow-x: hidden;
   flex: 1;
@@ -105,6 +99,8 @@ body {
   width: 16px;
   height: 16px;
   border-radius: 3px;
+  border: 1px solid var(--border);
+  padding: 1px;
 }
 
 .title {
