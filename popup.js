@@ -99,8 +99,7 @@ function itemUrl(item) {
 
 function itemFavicon(item) {
   if (item.kind === "tab") return item.tab.favIconUrl || "";
-  // recently closed usually doesn't have favIconUrl
-  return "";
+  return item.session?.tab?.favIconUrl || "";
 }
 
 function combinedScore(item, query) {
@@ -182,6 +181,9 @@ function render() {
   const closedTabs = ranked.filter((item) => item.kind === "closed");
   filtered = [...audibleTabs, ...openTabs, ...closedTabs];
 
+  // Default selection to the first open (non-audible) tab
+  const defaultSel = audibleTabs.length > 0 && openTabs.length > 0 ? audibleTabs.length : 0;
+  if (sel === 0 && defaultSel > 0) sel = defaultSel;
   if (sel >= filtered.length) sel = filtered.length - 1;
   if (sel < 0) sel = 0;
 
