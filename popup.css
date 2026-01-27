@@ -1,10 +1,29 @@
 :root {
-  --bg: #0f1115;
-  --fg: #e6e6e6;
-  --muted: #9aa3b2;
-  --sel: #2a3140;
-  --border: #202634;
-  --accent: #7aa2f7;
+  color-scheme: light dark; /* lets inputs/scrollbars pick correct defaults */
+}
+
+/* Light (default) */
+:root {
+  --bg: #f6f7fb;
+  --fg: #101319;
+  --muted: #5c6575;
+  --sel: #e9ecf5;
+  --border: #d7dbe7;
+  --accent: #2f5cff;
+  --input-bg: #ffffff;
+}
+
+/* Dark */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --fg: #e6e6e6;
+    --muted: #9aa3b2;
+    --sel: #2a3140;
+    --border: #202634;
+    --accent: #7aa2f7;
+    --input-bg: #0b0d12;
+  }
 }
 
 * {
@@ -32,15 +51,15 @@ body {
   width: 100%;
   padding: 10px 10px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #0b0d12;
+  background: var(--input-bg);
   color: var(--fg);
+  border-radius: 10px;
   outline: none;
 }
 
 #q:focus {
-  border-color: #2f3a52;
-  box-shadow: 0 0 0 2px rgba(122, 162, 247, 0.12);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 #meta {
