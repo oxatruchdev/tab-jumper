@@ -299,7 +299,7 @@ function render() {
   $meta.textContent =
     filtered.length === 0
       ? "No matches"
-      : `${filtered.length} tab${filtered.length === 1 ? "" : "s"} • ↑/↓ to navigate • Enter to switch`;
+      : `${filtered.length} tab${filtered.length === 1 ? "" : "s"} • ↑↓/Ctrl+J/K navigate • Enter/Ctrl+L switch`;
 
   // Divider before audible tabs
   if (audibleTabs.length > 0) {
