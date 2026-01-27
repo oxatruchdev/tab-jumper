@@ -51,9 +51,22 @@ body {
   height: 100%;
 }
 
+.search-wrap {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+}
+
+.search-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
 #q {
-  width: 100%;
-  padding: 10px 14px;
+  flex: 1;
+  padding: 14px 14px;
   border: none;
   background: transparent;
   color: var(--fg);
@@ -70,8 +83,6 @@ body {
   list-style: none;
   padding: 0;
   margin: 0;
-  /* border: 1px solid var(--border); */
-  /* border-radius: 10px; */
   overflow-y: auto;
   overflow-x: hidden;
   flex: 1;
@@ -79,12 +90,18 @@ body {
 }
 
 .item {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
+  display: flex;
+  align-items: center;
   gap: 10px;
   padding: 10px;
   border-top: 1px solid var(--border);
   cursor: default;
+}
+
+.item > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .item:first-child {
@@ -96,11 +113,12 @@ body {
 }
 
 .favicon {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
   border: 1px solid var(--border);
-  padding: 1px;
+  padding: 2px;
+  flex-shrink: 0;
 }
 
 .title {
