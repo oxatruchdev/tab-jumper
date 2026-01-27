@@ -186,6 +186,93 @@ function rankItems(query) {
     .sort((a, b) => b.s - a.s || a.i - b.i);
 }
 
+function fuzzyMatchPositions(text, query) {
+  const t = normalize(text);
+  const q = normalize(query);
+  if (!q || q.length > t.length) return null;
+
+  // Fast path: exact substring match
+  const subIdx = t.indexOf(q);
+  if (subIdx !== -1) {
+    const positions = [];
+    for (let i = subIdx; i < subIdx + q.length; i++) positions.push(i);
+    return positions;
+  }
+
+  // Recursive best-alignment (mirrors fuzzyAlign but tracks positions)
+  function align(ti, qi, lastMatch) {
+    if (qi === q.length) return { score: 0, pos: [] };
+    if (ti >= t.length) return null;
+
+    const ch = q[qi];
+    let best = null;
+
+    for (let i = ti; i < t.length; i++) {
+      if (t[i] !== ch) continue;
+
+      let score = 10;
+      if (lastMatch !== -1 && i === lastMatch + 1) score += 8;
+      if (i === 0 || " /:-_.".includes(t[i - 1])) score += 6;
+      score -= Math.min(6, i - ti);
+
+      const rest = align(i + 1, qi + 1, i);
+      if (!rest) continue;
+
+      const total = score + rest.score;
+      if (!best || total > best.score) {
+        best = { score: total, pos: [i, ...rest.pos] };
+      }
+
+      if (score >= 16) break;
+    }
+
+    return best;
+  }
+
+  const result = align(0, 0, -1);
+  return result ? result.pos : null;
+}
+
+function highlightText(text, positions) {
+  const frag = document.createDocumentFragment();
+  if (!positions || positions.length === 0) {
+    frag.appendChild(document.createTextNode(text));
+    return frag;
+  }
+
+  const set = new Set(positions);
+  let i = 0;
+  while (i < text.length) {
+    if (set.has(i)) {
+      const span = document.createElement("span");
+      span.className = "hl";
+      let j = i;
+      while (j < text.length && set.has(j)) j++;
+      span.textContent = text.slice(i, j);
+      frag.appendChild(span);
+      i = j;
+    } else {
+      let j = i;
+      while (j < text.length && !set.has(j)) j++;
+      frag.appendChild(document.createTextNode(text.slice(i, j)));
+      i = j;
+    }
+  }
+  return frag;
+}
+
+function getMatchPositions(text, query) {
+  const toks = tokens(query);
+  if (toks.length === 0) return null;
+
+  const all = new Set();
+  for (const tok of toks) {
+    const pos = fuzzyMatchPositions(text, tok);
+    if (pos) pos.forEach((p) => all.add(p));
+  }
+  return all.size > 0 ? [...all].sort((a, b) => a - b) : null;
+}
+
 function clearList() {
   while ($list.firstChild) $list.removeChild($list.firstChild);
 }
@@ -254,11 +341,23 @@ function render() {
 
     const title = document.createElement("div");
     title.className = "title";
-    title.textContent = itemTitle(item);
+    const titleText = itemTitle(item);
+    const urlText = itemUrl(item);
+    const query = $q.value;
+
+    if (query) {
+      title.appendChild(highlightText(titleText, getMatchPositions(titleText, query)));
+    } else {
+      title.textContent = titleText;
+    }
 
     const sub = document.createElement("div");
     sub.className = "sub";
-    sub.textContent = itemUrl(item);
+    if (query) {
+      sub.appendChild(highlightText(urlText, getMatchPositions(urlText, query)));
+    } else {
+      sub.textContent = urlText;
+    }
 
     textWrap.appendChild(title);
     textWrap.appendChild(sub);
