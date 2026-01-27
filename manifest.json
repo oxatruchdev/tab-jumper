@@ -1,27 +1,39 @@
 {
   "manifest_version": 2,
-  "name": "Tab Jumper",
+  "name": "Modern Tab Switcher",
   "version": "0.1.0",
   "description": "Quickly search and jump to tabs (Chrome-like Ctrl+Shift+A).",
   "permissions": ["tabs", "sessions", "storage"],
   "background": {
     "scripts": ["background.js"]
   },
+  "icons": {
+    "16": "favicon-16x16.png",
+    "32": "favicon-32x32.png",
+    "192": "android-chrome-192x192.png"
+  },
   "browser_action": {
-    "default_title": "Tab Jumper",
-    "default_popup": "popup.html"
+    "default_title": "Modern Tab Switcher",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "favicon-16x16.png",
+      "32": "favicon-32x32.png"
+    }
   },
   "commands": {
     "_execute_browser_action": {
       "suggested_key": {
         "default": "Ctrl+Shift+Space"
       },
-      "description": "Open Tab Jumper"
+      "description": "Open Modern Tab Switcher"
     }
   },
-  "applications": {
+  "browser_specific_settings": {
     "gecko": {
-      "id": "tab-jumper@local"
+      "id": "modern-tab-swithcer@local",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   }
 }

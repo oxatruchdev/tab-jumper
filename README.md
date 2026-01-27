@@ -1,6 +1,6 @@
-# Tab Jumper
+# Modern Tab Switcher
 
-![Tab Jumper](tab-jumper.png)
+![Modern Tab Switcher](tab-switcher.png)
 
 A Firefox extension that replicates the quick tab-switching experience from Brave/Chrome, with Vim motions because I love Vim.
 
