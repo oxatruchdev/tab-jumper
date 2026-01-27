@@ -24,40 +24,56 @@ function moveActiveToEnd(tabs) {
   return tabs;
 }
 
-// Simple fuzzy scoring: rewards ordered character matches with closeness bonus
+// Fuzzy scoring with best-alignment search (non-greedy)
 function fuzzyScore(text, query) {
   text = normalize(text);
   query = normalize(query);
   if (!query) return 0;
+  if (query.length > text.length) return -Infinity;
 
-  let ti = 0;
-  let score = 0;
-  let lastMatch = -1;
-
-  for (let qi = 0; qi < query.length; qi++) {
-    const ch = query[qi];
-    const idx = text.indexOf(ch, ti);
-    if (idx === -1) return -Infinity;
-
-    // base point for a match
-    score += 10;
-
-    // bonus for consecutive matches
-    if (lastMatch !== -1 && idx === lastMatch + 1) score += 8;
-
-    // bonus for “word boundary-ish”
-    if (idx === 0 || " /:-_.".includes(text[idx - 1])) score += 6;
-
-    // small penalty for distance jumped
-    score -= Math.min(6, idx - ti);
-
-    lastMatch = idx;
-    ti = idx + 1;
+  // Fast path: exact substring match
+  const subIdx = text.indexOf(query);
+  if (subIdx !== -1) {
+    let score = query.length * 20;
+    // bonus for matching at a word boundary
+    if (subIdx === 0 || " /:-_.".includes(text[subIdx - 1])) score += 30;
+    // bonus for prefix
+    if (subIdx === 0) score += 20;
+    score -= Math.min(10, text.length / 50);
+    return score;
   }
 
-  // shorter texts slightly favored
-  score -= Math.min(10, text.length / 50);
-  return score;
+  // Recursive best-alignment fuzzy match
+  const best = fuzzyAlign(text, query, 0, 0, -1);
+  if (best === -Infinity) return best;
+  return best - Math.min(10, text.length / 50);
+}
+
+function fuzzyAlign(text, query, ti, qi, lastMatch) {
+  if (qi === query.length) return 0;
+  if (ti >= text.length) return -Infinity;
+
+  const ch = query[qi];
+  let best = -Infinity;
+
+  for (let i = ti; i < text.length; i++) {
+    if (text[i] !== ch) continue;
+
+    let score = 10;
+    if (lastMatch !== -1 && i === lastMatch + 1) score += 8;
+    if (i === 0 || " /:-_.".includes(text[i - 1])) score += 6;
+    score -= Math.min(6, i - ti);
+
+    const rest = fuzzyAlign(text, query, i + 1, qi + 1, i);
+    if (rest === -Infinity) continue;
+
+    best = Math.max(best, score + rest);
+
+    // If we got a consecutive or boundary match, unlikely to improve — prune
+    if (score >= 16) break;
+  }
+
+  return best;
 }
 
 function getHostParts(url) {
@@ -133,15 +149,16 @@ function combinedScoreTabLike(tab, query) {
     const sUrl = fuzzyScore(urlNoProto, tok);
     const sTitle = fuzzyScore(title, tok);
 
-    const hasHost = sHost > -Infinity;
-    const hasUrl = sUrl > -Infinity;
-    const hasTitle = sTitle > -Infinity;
+    const MIN = tok.length * 8; // require reasonable quality per character
+    const hasHost = sHost >= MIN;
+    const hasUrl = sUrl >= MIN;
+    const hasTitle = sTitle >= MIN;
 
     if (!hasHost && !hasUrl && !hasTitle) return -Infinity;
 
-    const W_HOST = 6.0;
+    const W_HOST = 4.0;
     const W_URL = 2.0;
-    const W_TITLE = 1.0;
+    const W_TITLE = 3.0;
 
     const domainBonus = hasHost ? 60 : 0;
 
@@ -165,7 +182,7 @@ function rankItems(query) {
 
   return allItems
     .map((item, i) => ({ item, s: combinedScore(item, query), i }))
-    .filter((x) => x.s > -Infinity)
+    .filter((x) => x.s > 0)
     .sort((a, b) => b.s - a.s || a.i - b.i);
 }
 
@@ -181,9 +198,9 @@ function render() {
   const closedTabs = ranked.filter((item) => item.kind === "closed");
   filtered = [...audibleTabs, ...openTabs, ...closedTabs];
 
-  // Default selection to the first open (non-audible) tab
-  const defaultSel = audibleTabs.length > 0 && openTabs.length > 0 ? audibleTabs.length : 0;
-  if (sel === 0 && defaultSel > 0) sel = defaultSel;
+  if (!$q.value && audibleTabs.length > 0 && openTabs.length > 0) {
+    sel = audibleTabs.length;
+  }
   if (sel >= filtered.length) sel = filtered.length - 1;
   if (sel < 0) sel = 0;
 
@@ -196,10 +213,11 @@ function render() {
   if (audibleTabs.length > 0) {
     const div = document.createElement("li");
     div.className = "divider";
-    div.textContent = "Playing audio";
+    div.textContent = "Audible";
     $list.appendChild(div);
   }
 
+  let sectionIndex = 0;
   for (let i = 0; i < filtered.length; i++) {
     const item = filtered[i];
 
