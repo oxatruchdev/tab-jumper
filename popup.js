@@ -281,8 +281,12 @@ function clearList() {
 function render() {
   clearList();
   const ranked = rankItems($q.value).map((x) => x.item);
-  const audibleTabs = ranked.filter((item) => item.kind === "tab" && item.tab.audible);
-  const openTabs = ranked.filter((item) => item.kind === "tab" && !item.tab.audible);
+  const audibleTabs = ranked.filter(
+    (item) => item.kind === "tab" && item.tab.audible,
+  );
+  const openTabs = ranked.filter(
+    (item) => item.kind === "tab" && !item.tab.audible,
+  );
   const closedTabs = ranked.filter((item) => item.kind === "closed");
   filtered = [...audibleTabs, ...openTabs, ...closedTabs];
 
@@ -347,7 +351,9 @@ function render() {
     const query = $q.value;
 
     if (query) {
-      title.appendChild(highlightText(titleText, getMatchPositions(titleText, query)));
+      title.appendChild(
+        highlightText(titleText, getMatchPositions(titleText, query)),
+      );
     } else {
       title.textContent = titleText;
     }
@@ -355,7 +361,9 @@ function render() {
     const sub = document.createElement("div");
     sub.className = "sub";
     if (query) {
-      sub.appendChild(highlightText(hostText, getMatchPositions(hostText, query)));
+      sub.appendChild(
+        highlightText(hostText, getMatchPositions(hostText, query)),
+      );
     } else {
       sub.textContent = hostText;
     }
@@ -430,15 +438,15 @@ async function closeSelected() {
 }
 
 function onKey(e) {
-  if (e.key === "ArrowDown") {
+  if (e.key === "ArrowDown" || (e.ctrlKey && e.key === "j")) {
     e.preventDefault();
     sel = Math.min(filtered.length - 1, sel + 1);
     updateSelection();
-  } else if (e.key === "ArrowUp") {
+  } else if (e.key === "ArrowUp" || (e.ctrlKey && e.key === "k")) {
     e.preventDefault();
     sel = Math.max(0, sel - 1);
     updateSelection();
-  } else if (e.key === "Enter") {
+  } else if (e.key === "Enter" || (e.ctrlKey && e.key === "l")) {
     e.preventDefault();
     activateSelected();
   } else if (e.key === "Escape") {
