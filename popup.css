@@ -119,3 +119,11 @@ body {
 .hl {
   color: var(--accent);
 }
+
+.divider {
+  padding: 8px 10px;
+  color: var(--muted);
+  font-weight: 700;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 92%, var(--sel));
+}

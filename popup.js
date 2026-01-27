@@ -3,7 +3,9 @@ const $list = document.getElementById("list");
 const $meta = document.getElementById("meta");
 
 let allTabs = [];
-let filtered = [];
+let recentClosed = [];
+let allItems = []; // unified list: open tabs + recently closed
+let filtered = []; // unified filtered list
 let sel = 0;
 
 window.addEventListener("blur", () => {
@@ -82,7 +84,34 @@ function includesScore(text, q) {
   return text.includes(q) ? 200 : 0; // big boost for exact substring
 }
 
-function combinedScore(tab, query) {
+function itemTitle(item) {
+  if (item.kind === "tab")
+    return item.tab.title || item.tab.url || "(untitled)";
+  const t = item.session?.tab;
+  // sessions items: { tab: { title, url, ... }, sessionId }
+  return t?.title || t?.url || "(recently closed)";
+}
+
+function itemUrl(item) {
+  if (item.kind === "tab") return item.tab.url || "";
+  return item.session?.tab?.url || "";
+}
+
+function itemFavicon(item) {
+  if (item.kind === "tab") return item.tab.favIconUrl || "";
+  // recently closed usually doesn't have favIconUrl
+  return "";
+}
+
+function combinedScore(item, query) {
+  const title = itemTitle(item);
+  const url = itemUrl(item);
+
+  // Reuse your existing logic by creating a tab-like object
+  return combinedScoreTabLike({ title, url }, query);
+}
+
+function combinedScoreTabLike(tab, query) {
   const toks = tokens(query);
   if (toks.length === 0) return 0;
 
@@ -132,11 +161,11 @@ function combinedScore(tab, query) {
   return total;
 }
 
-function rankTabs(query) {
-  if (!query) return allTabs.map((t, i) => ({ t, s: 0, i }));
+function rankItems(query) {
+  if (!query) return allItems.map((item, i) => ({ item, s: 0, i }));
 
-  return allTabs
-    .map((t, i) => ({ t, s: combinedScore(t, query), i }))
+  return allItems
+    .map((item, i) => ({ item, s: combinedScore(item, query), i }))
     .filter((x) => x.s > -Infinity)
     .sort((a, b) => b.s - a.s || a.i - b.i);
 }
@@ -147,7 +176,7 @@ function clearList() {
 
 function render() {
   clearList();
-  filtered = rankTabs($q.value).map((x) => x.t);
+  filtered = rankItems($q.value).map((x) => x.item);
 
   if (sel >= filtered.length) sel = filtered.length - 1;
   if (sel < 0) sel = 0;
@@ -158,7 +187,19 @@ function render() {
       : `${filtered.length} tab${filtered.length === 1 ? "" : "s"} • ↑/↓ to navigate • Enter to switch`;
 
   for (let i = 0; i < filtered.length; i++) {
-    const tab = filtered[i];
+    const item = filtered[i];
+
+    // Divider: first recently-closed item
+    if (i > 0 && filtered[i - 1].kind === "tab" && item.kind === "closed") {
+      const div = document.createElement("li");
+      div.className = "divider";
+      div.style.cursor = "default";
+      div.style.color = "var(--muted)";
+      div.style.fontWeight = "600";
+      div.style.minWidth = "300px";
+      div.textContent = "Recently closed";
+      $list.appendChild(div);
+    }
 
     const li = document.createElement("li");
     li.className = "item";
@@ -167,7 +208,8 @@ function render() {
 
     const img = document.createElement("img");
     img.className = "favicon";
-    img.src = tab.favIconUrl || "";
+    img.src = itemFavicon(item);
+
     img.alt = "";
     img.referrerPolicy = "no-referrer";
     img.onerror = () => (img.style.visibility = "hidden");
@@ -176,11 +218,11 @@ function render() {
 
     const title = document.createElement("div");
     title.className = "title";
-    title.textContent = tab.title || tab.url || "(untitled)";
+    title.textContent = itemTitle(item);
 
     const sub = document.createElement("div");
     sub.className = "sub";
-    sub.textContent = tab.url || "";
+    sub.textContent = itemUrl(item);
 
     textWrap.appendChild(title);
     textWrap.appendChild(sub);
@@ -212,11 +254,32 @@ function updateSelection() {
 }
 
 async function activateSelected() {
-  const tab = filtered[sel];
-  if (!tab) return;
+  const item = filtered[sel];
+  if (!item) return;
 
-  await browser.tabs.update(tab.id, { active: true });
-  await browser.windows.update(tab.windowId, { focused: true });
+  if (item.kind === "tab") {
+    const tab = item.tab;
+    await browser.tabs.update(tab.id, { active: true });
+    await browser.windows.update(tab.windowId, { focused: true });
+    window.close();
+    return;
+  }
+
+  // recently closed
+  const sessionId = item.session?.tab?.sessionId;
+  console.log("item", JSON.stringify(item, 2, null));
+  if (!sessionId) return;
+
+  const restored = await browser.sessions.restore(sessionId);
+
+  // restored can be { tab } or { window }
+  if (restored?.tab?.id) {
+    await browser.tabs.update(restored.tab.id, { active: true });
+    await browser.windows.update(restored.tab.windowId, { focused: true });
+  } else if (restored?.window?.id) {
+    await browser.windows.update(restored.window.id, { focused: true });
+  }
+
   window.close();
 }
 
@@ -256,6 +319,21 @@ async function loadMRU() {
   return Array.isArray(obj[MRU_KEY]) ? obj[MRU_KEY] : [];
 }
 
+function buildAllItems() {
+  const openItems = allTabs.map((tab) => ({ kind: "tab", tab }));
+  const closedItems = recentClosed.map((session) => ({
+    kind: "closed",
+    session,
+  }));
+  allItems = [...openItems, ...closedItems];
+}
+
+async function loadRecentlyClosed(maxResults = 10) {
+  const arr = await browser.sessions.getRecentlyClosed({ maxResults });
+  // keep only closed tabs (ignore closed windows unless you want them too)
+  return arr;
+}
+
 async function init() {
   const mru = await loadMRU();
   const rank = new Map(mru.map((id, i) => [id, i]));
@@ -263,20 +341,18 @@ async function init() {
   const tabs = await browser.tabs.query({});
 
   allTabs = tabs
-    .map((t, i) => ({
-      t,
-      i,
-      r: rank.has(t.id) ? rank.get(t.id) : Infinity,
-    }))
+    .map((t, i) => ({ t, i, r: rank.has(t.id) ? rank.get(t.id) : Infinity }))
     .sort((a, b) => a.r - b.r || a.i - b.i)
     .map((x) => x.t);
 
-  // ✅ make “previous tab” first by pushing current tab to the end
   allTabs = moveActiveToEnd(allTabs);
+
+  recentClosed = await loadRecentlyClosed(10);
+  console.log("recentClosed", recentClosed);
+  buildAllItems();
 
   render();
 
-  // ✅ re-render on typing
   $q.addEventListener("input", () => {
     sel = 0;
     render();
