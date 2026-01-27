@@ -177,9 +177,10 @@ function clearList() {
 function render() {
   clearList();
   const ranked = rankItems($q.value).map((x) => x.item);
-  const openTabs = ranked.filter((item) => item.kind === "tab");
+  const audibleTabs = ranked.filter((item) => item.kind === "tab" && item.tab.audible);
+  const openTabs = ranked.filter((item) => item.kind === "tab" && !item.tab.audible);
   const closedTabs = ranked.filter((item) => item.kind === "closed");
-  filtered = [...openTabs, ...closedTabs];
+  filtered = [...audibleTabs, ...openTabs, ...closedTabs];
 
   if (sel >= filtered.length) sel = filtered.length - 1;
   if (sel < 0) sel = 0;
@@ -189,19 +190,27 @@ function render() {
       ? "No matches"
       : `${filtered.length} tab${filtered.length === 1 ? "" : "s"} • ↑/↓ to navigate • Enter to switch`;
 
-  // Divider before open tabs
-  if (openTabs.length > 0) {
+  // Divider before audible tabs
+  if (audibleTabs.length > 0) {
     const div = document.createElement("li");
     div.className = "divider";
-    div.textContent = "Open tabs";
+    div.textContent = "Playing audio";
     $list.appendChild(div);
   }
 
   for (let i = 0; i < filtered.length; i++) {
     const item = filtered[i];
 
-    // Divider before the first closed tab
-    if (item.kind === "closed" && i === openTabs.length) {
+    // Divider before open tabs
+    if (i === audibleTabs.length && openTabs.length > 0) {
+      const div = document.createElement("li");
+      div.className = "divider";
+      div.textContent = "Open tabs";
+      $list.appendChild(div);
+    }
+
+    // Divider before closed tabs
+    if (i === audibleTabs.length + openTabs.length && closedTabs.length > 0) {
       const div = document.createElement("li");
       div.className = "divider";
       div.textContent = "Recently closed";
