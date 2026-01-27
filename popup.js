@@ -58,18 +58,85 @@ function fuzzyScore(text, query) {
   return score;
 }
 
-function rankTabs(query) {
-  if (!query) {
-    // Default: active tab first, then window order
-    return allTabs.map((t, i) => ({ t, s: 0, i }));
+function getHostParts(url) {
+  try {
+    const u = new URL(url);
+    const host = (u.hostname || "").toLowerCase();
+    // also include "base domain-ish" (last 2 labels) as a separate field
+    const parts = host.split(".").filter(Boolean);
+    const base = parts.length >= 2 ? parts.slice(-2).join(".") : host;
+    return { host, base, full: `${host} ${base}`.trim() };
+  } catch {
+    return { host: "", base: "", full: "" };
+  }
+}
+
+function tokens(q) {
+  return normalize(q).split(/\s+/).filter(Boolean);
+}
+
+function includesScore(text, q) {
+  text = normalize(text);
+  q = normalize(q);
+  if (!q) return 0;
+  return text.includes(q) ? 200 : 0; // big boost for exact substring
+}
+
+function combinedScore(tab, query) {
+  const toks = tokens(query);
+  if (toks.length === 0) return 0;
+
+  const title = tab.title || "";
+  const url = tab.url || "";
+  const urlNoProto = url.replace(/^https?:\/\//i, "");
+
+  const { host, base, full } = getHostParts(url);
+
+  // For each token, require it to match somewhere (host/url/title).
+  // Then weight host > url > title.
+  let total = 0;
+
+  for (const tok of toks) {
+    const sHost = Math.max(
+      fuzzyScore(full, tok),
+      fuzzyScore(host, tok),
+      fuzzyScore(base, tok),
+    );
+    const sUrl = fuzzyScore(urlNoProto, tok);
+    const sTitle = fuzzyScore(title, tok);
+
+    const hasHost = sHost > -Infinity;
+    const hasUrl = sUrl > -Infinity;
+    const hasTitle = sTitle > -Infinity;
+
+    if (!hasHost && !hasUrl && !hasTitle) return -Infinity;
+
+    const W_HOST = 6.0;
+    const W_URL = 2.0;
+    const W_TITLE = 1.0;
+
+    const domainBonus = hasHost ? 60 : 0;
+
+    total +=
+      domainBonus +
+      W_HOST * (hasHost ? sHost : 0) +
+      W_URL * (hasUrl ? sUrl : 0) +
+      W_TITLE * (hasTitle ? sTitle : 0);
   }
 
+  // Extra boosts for whole-query substring matches (nice for "chatgpt", "teams", etc.)
+  total += includesScore(full, query) * 2;
+  total += includesScore(urlNoProto, query);
+  total += includesScore(title, query);
+
+  return total;
+}
+
+function rankTabs(query) {
+  if (!query) return allTabs.map((t, i) => ({ t, s: 0, i }));
+
   return allTabs
-    .map((t, i) => {
-      const hay = `${t.title || ""} ${t.url || ""}`;
-      const s = fuzzyScore(hay, query);
-      return { t, s, i };
-    })
+    .map((t, i) => ({ t, s: combinedScore(t, query), i }))
     .filter((x) => x.s > -Infinity)
     .sort((a, b) => b.s - a.s || a.i - b.i);
 }
@@ -178,11 +245,6 @@ function onKey(e) {
   } else if (e.key === "Escape") {
     e.preventDefault();
     window.close();
-  } else if (
-    (e.ctrlKey || e.metaKey) &&
-    (e.key === "w" || e.key === "Backspace" || e.key === "Delete")
-  ) {
-    e.preventDefault();
   }
 }
 
