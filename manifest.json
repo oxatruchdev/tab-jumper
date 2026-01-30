@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Modern Tab Switcher",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Quickly search and jump to tabs (Chrome-like Ctrl+Shift+A).",
   "permissions": ["tabs", "sessions", "storage"],
   "background": {
