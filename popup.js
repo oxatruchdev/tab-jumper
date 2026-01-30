@@ -291,7 +291,14 @@ function render() {
   filtered = [...audibleTabs, ...openTabs, ...closedTabs];
 
   if (!$q.value && audibleTabs.length > 0 && openTabs.length > 0) {
-    sel = audibleTabs.length;
+    // Find the last active tab (first non-active tab in MRU order)
+    const lastActiveTab = allItems.find(
+      (item) => item.kind === "tab" && !item.tab.active,
+    );
+    // Only skip audible section if the last active tab is NOT audible
+    if (!lastActiveTab?.tab?.audible) {
+      sel = audibleTabs.length;
+    }
   }
   if (sel >= filtered.length) sel = filtered.length - 1;
   if (sel < 0) sel = 0;
